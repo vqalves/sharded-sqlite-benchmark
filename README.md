@@ -93,6 +93,30 @@ Tests were ran using [k6](https://k6.io/docs/testing-guides/api-load-testing/)
 Execute POST `/generate-models` at least once before starting the benchmark runs. This will create and feed all the SQLite databases used for the benchmark. If it's not executed, an exception will probably be thrown.
 
 ```
-k6 run --vus 10000 --iterations 1000000 k6-stress-test.ts
+k6 run --vus 200 --iterations 5000 scripts\test-memorydb.ts
+k6 run --vus 200 --iterations 5000 scripts\test-shardeddb.ts
+k6 run --vus 200 --iterations 5000 scripts\test-singledb.ts
 ```
 
+### Key lookup results
+- 200 concurrent requests
+- 5k requests
+- 10 shards
+
+**Non-indexed database**
+Type | Total time | Average time | Responses per second
+--- | --- | --- | ---
+Memory | 0.01s | 4.23ms | 43276/s
+Sharded | 16.8s | 664ms | 297/s
+Single | 254s | 10000ms | 19/s
+
+The overall performance is 15x better using shards, but considering the database is not indexed, a sharded full-table scan needs to check data equivalent to 1/10 of the single database, so this magnitude of improvement is expected.
+
+**Indexed database**
+Type | Total time | Average time | Responses per second
+--- | --- | --- | ---
+Memory | 0.01s | 3.93ms | 43063/s
+Sharded | 4.1s | 156ms | 1225/s
+Single | 4s | 157ms | 1248/s
+
+Indexed database don't show much difference between sharded and non-sharded. This is examplained by the fact that a index lookup is a very optimized operation - O(log n) - and each database would require a massive amount of data in order to produce different results.
